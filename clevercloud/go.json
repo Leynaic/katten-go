@@ -1,0 +1,6 @@
+{
+  "deploy": {
+    "appIsGoPath": false,
+    "main": "main"
+  }
+}

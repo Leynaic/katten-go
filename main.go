@@ -58,7 +58,7 @@ func main() {
 	app.Patch("/update/password", handlers.UpdatePassword)
 	app.Patch("/update/description", handlers.UpdateDescription)
 
-	err := app.Listen(":3000")
+	err := app.Listen(":8080")
 	if err != nil {
 		log.Println(err)
 	}

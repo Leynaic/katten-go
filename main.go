@@ -55,6 +55,7 @@ func main() {
 	app.Delete("/cats/like/:id", handlers.CancelLikeCat)
 	app.Post("/cats/dislike/:id", handlers.DislikeCat)
 
+	app.Get("/profile", handlers.GetProfile)
 	app.Patch("/update/password", handlers.UpdatePassword)
 	app.Patch("/update/description", handlers.UpdateDescription)
 

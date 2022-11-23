@@ -16,6 +16,11 @@ type UserAuth struct {
 	Password string `json:"password" xml:"password" form:"password"`
 }
 
+func GetProfile(c *fiber.Ctx) error {
+	currentCat := helpers.GetCurrentCat(c)
+	return c.Status(fiber.StatusOK).JSON(currentCat)
+}
+
 func UpdatePassword(c *fiber.Ctx) error {
 	newPassword := c.Body()
 	currentCat := helpers.GetCurrentCat(c)

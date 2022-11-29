@@ -4,6 +4,7 @@ import (
 	"github.com/Leynaic/katten-go/database"
 	"github.com/Leynaic/katten-go/helpers"
 	"github.com/Leynaic/katten-go/models"
+	"github.com/Leynaic/katten-go/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -31,6 +32,13 @@ func GetCats(c *fiber.Ctx) error {
 			Find(&cats)
 	}
 
+	for i, cat := range cats {
+		if avatar, err := utils.GetUrl(cat.Avatar); err == nil {
+			cat.Avatar = avatar.String()
+			cats[i] = cat
+		}
+	}
+
 	return c.Status(fiber.StatusOK).JSON(cats)
 }
 
@@ -53,6 +61,20 @@ func CancelLikeCat(c *fiber.Ctx) error {
 	if catToLikeID, err := c.ParamsInt("id", 0); err == nil && int(currentCat.ID) != catToLikeID {
 		db := database.GetInstance()
 		if db.Exec("DELETE FROM cat_likes WHERE cat_id = ? AND like_id = ?", currentCat.ID, catToLikeID).Error == nil {
+			return c.Status(fiber.StatusOK).JSON(true)
+		} else {
+			return c.Status(fiber.StatusBadRequest).JSON(false)
+		}
+	} else {
+		return c.Status(fiber.StatusBadRequest).JSON(false)
+	}
+}
+
+func CancelDislikeCat(c *fiber.Ctx) error {
+	currentCat := helpers.GetCurrentCat(c)
+	if catToDislikeID, err := c.ParamsInt("id", 0); err == nil && int(currentCat.ID) != catToDislikeID {
+		db := database.GetInstance()
+		if db.Exec("DELETE FROM cat_dislikes WHERE cat_id = ? AND dislike_id = ?", currentCat.ID, catToDislikeID).Error == nil {
 			return c.Status(fiber.StatusOK).JSON(true)
 		} else {
 			return c.Status(fiber.StatusBadRequest).JSON(false)

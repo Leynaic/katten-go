@@ -1,10 +1,16 @@
 package main
 
 import (
-	"github.com/Leynaic/katten-go/handlers"
-	jwtware "github.com/gofiber/jwt/v3"
 	"log"
+	"net/url"
 	"os"
+	"time"
+
+	"github.com/jellydator/ttlcache/v3"
+
+	"github.com/Leynaic/katten-go/handlers"
+	"github.com/Leynaic/katten-go/utils"
+	jwtware "github.com/gofiber/jwt/v3"
 
 	"github.com/Leynaic/katten-go/database"
 	"github.com/goccy/go-json"
@@ -18,6 +24,12 @@ func main() {
 		JSONEncoder: json.Marshal,
 		JSONDecoder: json.Unmarshal,
 	})
+
+	utils.Cache = ttlcache.New(
+		ttlcache.WithTTL[string, *url.URL](24 * time.Hour),
+	)
+
+	go utils.Cache.Start()
 
 	if err := godotenv.Load("kat.env"); err != nil {
 		log.Println("The .env file is not found, continue without it...")
@@ -35,6 +47,8 @@ func main() {
 		os.Getenv("POSTGRES_NAME"),
 		os.Getenv("POSTGRES_PORT"),
 	)
+
+	utils.NewMinioClient("content.leynaic.page", "Yd0uq1RhnnFvJSys", "y8CxeoRlqJGVrcuFsff8KMgA7TxbLKmn")
 
 	// authGroup := app.Group("")
 	app.Post("/login", handlers.Login)
@@ -54,9 +68,10 @@ func main() {
 	app.Post("/cats/like/:id", handlers.LikeCat)
 	app.Delete("/cats/like/:id", handlers.CancelLikeCat)
 	app.Post("/cats/dislike/:id", handlers.DislikeCat)
+	app.Delete("/cats/dislike/:id", handlers.CancelDislikeCat)
 
 	app.Get("/profile", handlers.GetProfile)
-	app.Patch("/update/password", handlers.UpdatePassword)
+	app.Patch("/update/avatar", handlers.UpdateAvatar)
 	app.Patch("/update/description", handlers.UpdateDescription)
 
 	err := app.Listen(":8080")

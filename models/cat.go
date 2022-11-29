@@ -11,4 +11,5 @@ type Cat struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 	Likes       []Cat     `gorm:"many2many:cat_likes;" json:"likes,omitempty"`
 	Dislikes    []Cat     `gorm:"many2many:cat_dislikes;" json:"dislikes,omitempty"`
+	Avatar      string    `json:"avatar"`
 }

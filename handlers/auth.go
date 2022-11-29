@@ -1,14 +1,20 @@
 package handlers
 
 import (
+	"fmt"
+	"math/rand"
+	"mime/multipart"
+	"os"
+	"time"
+
 	"github.com/Leynaic/katten-go/database"
 	"github.com/Leynaic/katten-go/helpers"
 	"github.com/Leynaic/katten-go/models"
+	"github.com/Leynaic/katten-go/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
-	"os"
-	"time"
+	"gorm.io/gorm/clause"
 )
 
 type UserAuth struct {
@@ -21,23 +27,46 @@ func GetProfile(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(currentCat)
 }
 
-func UpdatePassword(c *fiber.Ctx) error {
-	newPassword := c.Body()
-	currentCat := helpers.GetCurrentCat(c)
-	if len(newPassword) < 8 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Your password must be at least 8 characters",
-		})
-	}
+func UpdateAvatar(c *fiber.Ctx) error {
+	if file, err := c.FormFile("avatar"); err == nil {
+		currentCat := helpers.GetCurrentCat(c)
+		var fileName string
 
-	if bytes, err := bcrypt.GenerateFromPassword(newPassword, 14); err == nil {
-		currentCat.Password = string(bytes)
-		database.GetInstance().Save(&currentCat)
+		if !isImage(file) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Bad Image Type",
+			})
+		}
+
+		if fileName, err = utils.ReplaceUpload("", file, currentCat.Avatar); err == nil {
+			database.GetInstance().Model(&currentCat).Clauses(clause.Returning{}).Updates(models.Cat{
+				Avatar: fileName,
+			})
+		} else {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Internal Server Error",
+				"error":   err.Error(),
+			})
+		}
+
 		return c.JSON(currentCat)
 	} else {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
+	}
+}
+
+func isImage(fh *multipart.FileHeader) bool {
+	if filetype, err := utils.GetFileContentType(fh); err != nil {
+		return false
+	} else {
+		switch filetype {
+		case "image/jpeg", "image/jpg", "image/gif", "image/png", "image/webp":
+			return true
+		default:
+			return false
+		}
 	}
 }
 
@@ -91,28 +120,39 @@ func Register(c *fiber.Ctx) error {
 	if err := c.BodyParser(auth); err != nil {
 		return invalid(c)
 	} else if bytes, err := bcrypt.GenerateFromPassword([]byte(auth.Password), 14); err == nil {
-		user := models.Cat{
-			Username: auth.Username,
-			Password: string(bytes),
-		}
+		var fileName string
+		randomAvatar := rand.Intn(21) + 1
+		defaultAvatar := fmt.Sprintf("%d.png", randomAvatar)
+		if fileName, err = utils.Copy(defaultAvatar); err == nil {
+			user := models.Cat{
+				Username: auth.Username,
+				Password: string(bytes),
+				Avatar:   fileName,
+			}
+			var count int64
 
-		var count int64
+			db := database.GetInstance()
+			db.Model(&models.Cat{}).Where("username = ?", auth.Username).Count(&count)
 
-		db := database.GetInstance()
-		db.Model(&models.Cat{}).Where("username = ?", auth.Username).Count(&count)
+			if count == 0 {
+				db = db.Create(&user)
+			} else {
+				return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
+					"message": "Username already exists",
+				})
+			}
 
-		if count == 0 {
-			db = db.Create(&user)
+			if db.Error != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(db.Error)
+			} else {
+				if avatar, err := utils.GetUrl(user.Avatar); err == nil {
+					user.Avatar = avatar.String()
+					return c.JSON(user)
+				}
+				return invalid((c))
+			}
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
-				"message": "Username already exists",
-			})
-		}
-
-		if db.Error != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(db.Error)
-		} else {
-			return c.JSON(user)
+			return invalid(c)
 		}
 	} else {
 		return invalid(c)

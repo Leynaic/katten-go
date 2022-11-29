@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Leynaic/katten-go/models"
 	"log"
 	"net/url"
 	"os"
@@ -20,6 +21,8 @@ import (
 )
 
 func main() {
+	models.InitErrors()
+	
 	app := fiber.New(fiber.Config{
 		JSONEncoder: json.Marshal,
 		JSONDecoder: json.Unmarshal,

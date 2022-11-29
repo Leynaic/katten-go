@@ -18,8 +18,8 @@ import (
 )
 
 type UserAuth struct {
-	Username string `json:"username" xml:"username" form:"username"`
-	Password string `json:"password" xml:"password" form:"password"`
+	Username string `json:"username" xml:"username" form:"username" validate:"required,alphanum"`
+	Password string `json:"password" xml:"password" form:"password" validate:"required,gte=8"`
 }
 
 func GetProfile(c *fiber.Ctx) error {
@@ -120,6 +120,11 @@ func Register(c *fiber.Ctx) error {
 	if err := c.BodyParser(auth); err != nil {
 		return invalid(c)
 	} else if bytes, err := bcrypt.GenerateFromPassword([]byte(auth.Password), 14); err == nil {
+		errors := models.ValidateStruct(auth)
+		if errors != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(errors)
+		}
+
 		var fileName string
 		randomAvatar := rand.Intn(21) + 1
 		defaultAvatar := fmt.Sprintf("%d.png", randomAvatar)
